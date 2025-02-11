@@ -1,31 +1,60 @@
 import java.sql.*;
-
-public class CaseManager {
+import java.util.Scanner;
+class CaseManager {
     private DatabaseHandler dbHandler;
-
     public CaseManager(DatabaseHandler dbHandler) {
         this.dbHandler = dbHandler;
     }
 
-    // Добавление дела в базу
-    public void addCase(Case policeCase) throws SQLException {
-        String query = "INSERT INTO cases (name, year, category, victim) VALUES (?, ?, ?, ?)";
+    public boolean addCase(String name, int year, String category, String victim, boolean archived) throws SQLException {
+        String query = "INSERT INTO cases (name, year, category, victim, archived) VALUES (?, ?, ?, ?, ?)";
         try (PreparedStatement stmt = dbHandler.getConnection().prepareStatement(query)) {
-            stmt.setString(1, policeCase.getCaseName());
-            stmt.setInt(2, policeCase.getYear());
-            stmt.setString(3, policeCase.getCategory());
-            stmt.setString(4, policeCase.getVictim());
-            stmt.executeUpdate();
+            stmt.setString(1, name);
+            stmt.setInt(2, year);
+            stmt.setString(3, category);
+            stmt.setString(4, victim);
+            stmt.setBoolean(5, archived);
+            return stmt.executeUpdate() > 0;
         }
     }
 
-    // Удаление дела по ID
     public boolean deleteCase(int caseId) throws SQLException {
         String query = "DELETE FROM cases WHERE id = ?";
         try (PreparedStatement stmt = dbHandler.getConnection().prepareStatement(query)) {
             stmt.setInt(1, caseId);
-            int rowsDeleted = stmt.executeUpdate();
-            return rowsDeleted > 0;
+            return stmt.executeUpdate() > 0;
+        }
+    }
+
+    public void searchCaseByName(String name) throws SQLException {
+        String query = "SELECT * FROM cases WHERE name ILIKE ?";
+        try (PreparedStatement stmt = dbHandler.getConnection().prepareStatement(query)) {
+            stmt.setString(1, "%" + name + "%");
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                System.out.println("Case: " + rs.getString("name") + ", Category: " + rs.getString("category") + ", Victim: " + rs.getString("victim"));
+            }
+        }
+    }
+
+    public boolean editCase(int caseId, String newName, String newCategory, String newVictim) throws SQLException {
+        String query = "UPDATE cases SET name = ?, category = ?, victim = ? WHERE id = ?";
+        try (PreparedStatement stmt = dbHandler.getConnection().prepareStatement(query)) {
+            stmt.setString(1, newName);
+            stmt.setString(2, newCategory);
+            stmt.setString(3, newVictim);
+            stmt.setInt(4, caseId);
+            return stmt.executeUpdate() > 0;
+        }
+    }
+
+    public void viewAllCases() throws SQLException {
+        String query = "SELECT * FROM cases";
+        try (Statement stmt = dbHandler.getConnection().createStatement(); ResultSet rs = stmt.executeQuery(query)) {
+            while (rs.next()) {
+                System.out.println("ID: " + rs.getInt("id") + ", Name: " + rs.getString("name") + ", Category: " + rs.getString("category") + ", Victim: " + rs.getString("victim"));
+            }
         }
     }
 }
+
