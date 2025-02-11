@@ -1,5 +1,5 @@
+import java.sql.*;
 import java.util.Scanner;
-import java.sql.SQLException;
 
 public class Main {
     public static void main(String[] args) {
@@ -13,10 +13,9 @@ public class Main {
             System.out.println("2. Register");
             System.out.print("Choose an option: ");
             int choice = scanner.nextInt();
-            scanner.nextLine(); // Очистка буфера
+            scanner.nextLine();
 
             if (choice == 1) {
-                // Авторизация пользователя
                 System.out.print("Enter email: ");
                 String email = scanner.nextLine();
                 System.out.print("Enter password: ");
@@ -27,17 +26,14 @@ public class Main {
                     System.out.println("Welcome, " + user.getName() + "!");
 
                     if (user instanceof Admin) {
-                        System.out.println("You are an admin.");
                         adminMenu(scanner, caseManager);
                     } else {
-                        System.out.println("You are a regular user.");
                         userMenu(scanner, caseManager);
                     }
                 } else {
                     System.out.println("Authentication failed!");
                 }
             } else if (choice == 2) {
-                // Регистрация нового пользователя
                 System.out.print("Enter your name: ");
                 String name = scanner.nextLine();
                 System.out.print("Enter your email: ");
@@ -48,56 +44,57 @@ public class Main {
                 String role = scanner.nextLine().toLowerCase();
 
                 if (!role.equals("admin") && !role.equals("user")) {
-                    System.out.println("Invalid role. Defaulting to 'user'.");
                     role = "user";
                 }
 
                 boolean success = userManager.registerUser(name, email, password, role);
-                if (success) {
-                    System.out.println("User registered successfully as " + role + "!");
-                } else {
-                    System.out.println("Registration failed!");
-                }
+                System.out.println(success ? "User registered successfully!" : "Registration failed!");
             } else {
                 System.out.println("Invalid option.");
             }
-
             dbHandler.close();
-        } catch (SQLException e) {
-            System.out.println("Database error: " + e.getMessage());
-            e.printStackTrace();
         } catch (Exception e) {
-            System.out.println("Unexpected error: " + e.getMessage());
             e.printStackTrace();
         } finally {
             scanner.close();
         }
     }
 
-    // Меню для обычного пользователя (может только добавлять дела)
     private static void userMenu(Scanner scanner, CaseManager caseManager) throws SQLException {
-        System.out.println("1. Add a case");
-        System.out.println("2. Exit");
-        System.out.print("Choose an option: ");
-        int choice = scanner.nextInt();
-        scanner.nextLine(); // Очистка буфера
+        while (true) {
+            System.out.println("1. Search for a case by name");
+            System.out.println("2. View all cases");
+            System.out.println("3. Exit");
+            System.out.print("Choose an option: ");
+            int choice = scanner.nextInt();
+            scanner.nextLine();
 
-        if (choice == 1) {
-            addCase(scanner, caseManager);
-        } else {
-            System.out.println("Exiting...");
+            switch (choice) {
+                case 1:
+                    searchCase(scanner, caseManager);
+                    break;
+                case 2:
+                    caseManager.viewAllCases();
+                    break;
+                case 3:
+                    return;
+                default:
+                    System.out.println("Invalid choice.");
+            }
         }
     }
 
-    // Меню для администратора (может добавлять и удалять дела)
     private static void adminMenu(Scanner scanner, CaseManager caseManager) throws SQLException {
         while (true) {
             System.out.println("1. Add a case");
             System.out.println("2. Delete a case");
-            System.out.println("3. Exit");
+            System.out.println("3. Search for a case by name");
+            System.out.println("4. Edit a case");
+            System.out.println("5. View all cases");
+            System.out.println("6. Exit");
             System.out.print("Choose an option: ");
             int choice = scanner.nextInt();
-            scanner.nextLine(); // Очистка буфера
+            scanner.nextLine();
 
             switch (choice) {
                 case 1:
@@ -107,7 +104,15 @@ public class Main {
                     deleteCase(scanner, caseManager);
                     break;
                 case 3:
-                    System.out.println("Exiting...");
+                    searchCase(scanner, caseManager);
+                    break;
+                case 4:
+                    editCase(scanner, caseManager);
+                    break;
+                case 5:
+                    caseManager.viewAllCases();
+                    break;
+                case 6:
                     return;
                 default:
                     System.out.println("Invalid choice.");
@@ -115,34 +120,67 @@ public class Main {
         }
     }
 
-    // Добавление дела в базу
     private static void addCase(Scanner scanner, CaseManager caseManager) throws SQLException {
         System.out.print("Enter case name: ");
         String name = scanner.nextLine();
-        System.out.print("Enter year: ");
-        int year = scanner.nextInt();
-        scanner.nextLine();
+
+        // ✅ Добавляем проверку для корректного ввода года
+        int year = 0;
+        while (true) {
+            System.out.print("Enter year: ");
+            if (scanner.hasNextInt()) {
+                year = scanner.nextInt();
+                scanner.nextLine(); // Читаем перевод строки
+                break;
+            } else {
+                System.out.println("Invalid input. Please enter a valid year.");
+                scanner.nextLine(); // Очищаем ввод
+            }
+        }
+
         System.out.print("Enter category: ");
         String category = scanner.nextLine();
+
         System.out.print("Enter victim name: ");
         String victim = scanner.nextLine();
 
-        Case newCase = new Case(0, name, year, category, victim);
-        caseManager.addCase(newCase);
-        System.out.println("Case added successfully.");
+        System.out.print("Enter archived (true/false): ");
+        boolean archived = scanner.nextBoolean();
+        scanner.nextLine();
+
+        boolean success = caseManager.addCase(name, year, category, victim, archived);
+        System.out.println(success ? "Case added successfully." : "Failed to add case.");
     }
 
-    // Удаление дела по его ID
+
     private static void deleteCase(Scanner scanner, CaseManager caseManager) throws SQLException {
         System.out.print("Enter case ID to delete: ");
         int caseId = scanner.nextInt();
         scanner.nextLine();
 
         boolean success = caseManager.deleteCase(caseId);
-        if (success) {
-            System.out.println("Case deleted successfully.");
-        } else {
-            System.out.println("Failed to delete case. Case ID not found.");
-        }
+        System.out.println(success ? "Case deleted successfully." : "Failed to delete case.");
+    }
+
+
+    private static void searchCase(Scanner scanner, CaseManager caseManager) throws SQLException {
+        System.out.print("Enter case name to search: ");
+        String name = scanner.nextLine();
+        caseManager.searchCaseByName(name);
+    }
+
+    private static void editCase(Scanner scanner, CaseManager caseManager) throws SQLException {
+        System.out.print("Enter case ID to edit: ");
+        int caseId = scanner.nextInt();
+        scanner.nextLine();
+        System.out.print("Enter new case name: ");
+        String newName = scanner.nextLine();
+        System.out.print("Enter new category: ");
+        String newCategory = scanner.nextLine();
+        System.out.print("Enter new victim name: ");
+        String newVictim = scanner.nextLine();
+
+        boolean success = caseManager.editCase(caseId, newName, newCategory, newVictim);
+        System.out.println(success ? "Case updated successfully." : "Failed to update case.");
     }
 }
